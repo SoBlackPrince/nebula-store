@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Nebula Store</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    width: 100%; height: 100%;
+    background: #000; overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: #fff;
+  }
+  #stars { position: fixed; inset: 0; z-index: 1; }
+  #content {
+    position: relative; z-index: 2;
+    display: flex; flex-direction: column;
+    align-items: center;
+    padding-top: 70px;
+    height: 100%;
+  }
+  .title {
+    font-size: 34px; font-weight: 700; letter-spacing: 2px;
+    background: linear-gradient(90deg, #ffffff, #9ec5ff, #ffffff);
+    background-size: 200% auto;
+    -webkit-background-clip: text; background-clip: text;
+    color: transparent;
+    opacity: 0; transform: translateY(20px);
+    animation: fadeInUp 1.2s ease forwards, shimmer 4s linear infinite 1.2s;
+  }
+  @keyframes fadeInUp { to { opacity: 1; transform: translateY(0); } }
+  @keyframes shimmer { to { background-position: 200% center; } }
+</style>
+</head>
+<body>
+<canvas id="stars"></canvas>
+<div id="content"><h1 class="title">Nebula Store</h1></div>
+<script>
+  const tg = window.Telegram?.WebApp;
+  if (tg) { tg.ready(); tg.expand(); tg.setHeaderColor('#000000'); tg.setBackgroundColor('#000000'); }
+
+  const canvas = document.getElementById('stars');
+  const ctx = canvas.getContext('2d');
+  let W, H, stars = [];
+
+  function resize() { W = canvas.width = innerWidth; H = canvas.height = innerHeight; }
+  function initStars(count = 130) {
+    stars = Array.from({ length: count }, () => ({
+      x: Math.random() * W, y: Math.random() * H,
+      r: Math.random() * 1.5 + 0.3,
+      speed: Math.random() * 0.3 + 0.05,
+      alpha: Math.random() * 0.6 + 0.4,
+      drift: (Math.random() - 0.5) * 0.2
+    }));
+  }
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    for (const s of stars) {
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255,255,255,${s.alpha})`;
+      ctx.fill();
+      s.y -= s.speed; s.x += s.drift;
+      if (s.y < -2) { s.y = H + 2; s.x = Math.random() * W; }
+      if (s.x < -2) s.x = W + 2;
+      if (s.x > W + 2) s.x = -2;
+    }
+    requestAnimationFrame(draw);
+  }
+  addEventListener('resize', () => { resize(); initStars(); });
+  resize(); initStars(); draw();
+</script>
+</body>
+</html>

@@ -6,41 +6,202 @@
 <title>Nebula Store</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
+  /* Сброс стилей и базовые настройки */
+  * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
   html, body {
     width: 100%; height: 100%;
     background: #000; overflow: hidden;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     color: #fff;
+    user-select: none; /* Запрет выделения текста для нативного ощущения */
   }
+  
+  /* Фон со звездами */
   #stars { position: fixed; inset: 0; z-index: 1; }
-  #content {
+  
+  /* Основной контент */
+  #app {
     position: relative; z-index: 2;
-    display: flex; flex-direction: column;
-    align-items: center;
-    padding-top: 70px;
-    height: 100%;
+    height: 100%; display: flex; flex-direction: column;
+    padding: 20px;
   }
-  .title {
-    font-size: 34px; font-weight: 700; letter-spacing: 2px;
-    background: linear-gradient(90deg, #ffffff, #9ec5ff, #ffffff);
-    background-size: 200% auto;
-    -webkit-background-clip: text; background-clip: text;
-    color: transparent;
-    opacity: 0; transform: translateY(20px);
-    animation: fadeInUp 1.2s ease forwards, shimmer 4s linear infinite 1.2s;
+
+  /* Шапка */
+  .header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-top: 10px; margin-bottom: 25px;
   }
+  .header-title {
+    font-size: 24px; font-weight: 700; color: #fff;
+    opacity: 0; transform: translateY(-10px);
+    animation: fadeInUp 0.8s ease forwards;
+  }
+  
+  /* Кнопка профиля */
+  .profile-btn {
+    width: 42px; height: 42px; border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    display: flex; justify-content: center; align-items: center;
+    cursor: pointer; transition: background 0.2s;
+    opacity: 0; transform: translateY(-10px);
+    animation: fadeInUp 0.8s ease 0.2s forwards;
+  }
+  .profile-btn:active { background: rgba(255, 255, 255, 0.2); }
+  .profile-icon { width: 24px; height: 24px; fill: #fff; }
+
+  /* Блок поиска и фильтра */
+  .search-section {
+    display: flex; gap: 10px;
+    opacity: 0; transform: translateY(10px);
+    animation: fadeInUp 0.8s ease 0.4s forwards;
+  }
+  .search-input {
+    flex: 1; padding: 12px 16px;
+    background: rgba(255, 255, 255, 0.1);
+    border: none; border-radius: 12px;
+    color: #fff; font-size: 16px; outline: none;
+  }
+  .search-input::placeholder { color: rgba(255, 255, 255, 0.5); }
+  
+  .filter-btn {
+    width: 46px; height: 46px; border-radius: 12px;
+    background: rgba(255, 255, 255, 0.1);
+    display: flex; justify-content: center; align-items: center;
+    cursor: pointer; border: none; transition: background 0.2s;
+  }
+  .filter-btn:active { background: rgba(255, 255, 255, 0.2); }
+  .filter-icon { width: 20px; height: 20px; fill: #fff; }
+
+  /* Модальное окно профиля */
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 10;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(5px);
+    display: flex; justify-content: center; align-items: center;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+  .modal-overlay.active {
+    opacity: 1; pointer-events: auto;
+  }
+  
+  .profile-modal {
+    background: #111; width: 85%; max-width: 320px;
+    border-radius: 20px; padding: 25px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex; flex-direction: column; align-items: center;
+    transform: scale(0.9) translateY(20px);
+    transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+  .modal-overlay.active .profile-modal {
+    transform: scale(1) translateY(0);
+  }
+
+  .modal-avatar {
+    width: 64px; height: 64px; border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    display: flex; justify-content: center; align-items: center;
+    margin-bottom: 15px;
+  }
+  .modal-avatar svg { width: 32px; height: 32px; fill: #fff; }
+  
+  .modal-nickname {
+    font-size: 20px; font-weight: 600; color: #fff;
+    margin-bottom: 8px;
+  }
+  
+  .modal-balance {
+    font-size: 14px; color: rgba(255, 255, 255, 0.6);
+    margin-bottom: 25px;
+  }
+  
+  .topup-btn {
+    width: 100%; padding: 14px;
+    background: #fff; color: #000;
+    border: none; border-radius: 12px;
+    font-size: 16px; font-weight: 600;
+    cursor: pointer; transition: opacity 0.2s;
+  }
+  .topup-btn:active { opacity: 0.8; }
+
+  /* Анимация появления */
   @keyframes fadeInUp { to { opacity: 1; transform: translateY(0); } }
-  @keyframes shimmer { to { background-position: 200% center; } }
 </style>
 </head>
 <body>
 <canvas id="stars"></canvas>
-<div id="content"><h1 class="title">Nebula Store</h1></div>
-<script>
-  const tg = window.Telegram?.WebApp;
-  if (tg) { tg.ready(); tg.expand(); tg.setHeaderColor('#000000'); tg.setBackgroundColor('#000000'); }
 
+<div id="app">
+  <!-- Шапка -->
+  <div class="header">
+    <div class="header-title">Nebula Store</div>
+    <div class="profile-btn" id="openProfile">
+      <!-- Иконка профиля -->
+      <svg class="profile-icon" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+    </div>
+  </div>
+
+  <!-- Поиск и фильтр -->
+  <div class="search-section">
+    <input type="text" class="search-input" placeholder="Поиск товара...">
+    <button class="filter-btn">
+      <!-- Иконка фильтра (ползунки) -->
+      <svg class="filter-icon" viewBox="0 0 24 24"><path d="M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z"/></svg>
+    </button>
+  </div>
+  
+  <!-- Здесь позже будет каталог товаров -->
+</div>
+
+<!-- Модальное окно профиля -->
+<div class="modal-overlay" id="profileModal">
+  <div class="profile-modal">
+    <div class="modal-avatar">
+      <svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+    </div>
+    <div class="modal-nickname" id="userName">Загрузка...</div>
+    <div class="modal-balance">Ваш баланс: <span id="userBalance">0</span> ₽</div>
+    <button class="topup-btn" id="topupBtn">Пополнить баланс</button>
+  </div>
+</div>
+
+<script>
+  // Инициализация Telegram WebApp
+  const tg = window.Telegram?.WebApp;
+  if (tg) { 
+    tg.ready(); 
+    tg.expand(); 
+    tg.setHeaderColor('#000000'); 
+    tg.setBackgroundColor('#000000'); 
+  }
+
+  // Получаем никнейм из Telegram
+  const firstName = tg?.initDataUnsafe?.user?.first_name || 'Гость';
+  const username = tg?.initDataUnsafe?.user?.username ? `@${tg.initDataUnsafe.user.username}` : firstName;
+  document.getElementById('userName').innerText = username;
+
+  // Логика открытия/закрытия профиля
+  const modal = document.getElementById('profileModal');
+  const openBtn = document.getElementById('openProfile');
+  
+  openBtn.addEventListener('click', () => {
+    modal.classList.add('active');
+    if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
+  });
+
+  // Закрытие при клике на фон
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) {
+      modal.classList.remove('active');
+    }
+  });
+
+  // Заглушка для кнопки пополнения
+  document.getElementById('topupBtn').addEventListener('click', () => {
+    if (tg) tg.showAlert('Функция пополнения скоро появится!');
+    else alert('Функция пополнения скоро появится!');
+  });
+
+  // --- Фон со звездами (без изменений) ---
   const canvas = document.getElementById('stars');
   const ctx = canvas.getContext('2d');
   let W, H, stars = [];

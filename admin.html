@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Panel - Nebula</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  body { background: #000; color: #fff; height: 100vh; display: flex; justify-content: center; align-items: center; overflow: hidden; }
+  
+  #stars { position: fixed; inset: 0; z-index: 1; }
+  
+  /* Окно логина */
+  .login-box { position: relative; z-index: 2; background: #111; padding: 30px; border-radius: 20px; width: 90%; max-width: 350px; border: 1px solid rgba(255,255,255,0.1); text-align: center; }
+  .login-box h2 { margin-bottom: 20px; }
+  input { width: 100%; padding: 12px; margin-bottom: 10px; background: rgba(255,255,255,0.1); border: none; border-radius: 8px; color: #fff; outline: none; }
+  button { width: 100%; padding: 12px; background: #fff; color: #000; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+
+  /* Сама админка */
+  .admin-panel { display: none; position: relative; z-index: 2; width: 90%; max-width: 600px; background: #111; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1); overflow: hidden; height: 80vh; flex-direction: column; }
+  .tabs { display: flex; background: #000; border-bottom: 1px solid rgba(255,255,255,0.1); }
+  .tab { flex: 1; padding: 15px; text-align: center; cursor: pointer; color: #888; font-size: 14px; transition: 0.2s; }
+  .tab.active { color: #fff; border-bottom: 2px solid #fff; background: rgba(255,255,255,0.05); }
+  .tab-content { padding: 20px; overflow-y: auto; flex: 1; }
+  
+  .section { display: none; }
+  .section.active { display: block; }
+  
+  textarea { width: 100%; height: 100px; padding: 10px; background: rgba(255,255,255,0.1); border: none; border-radius: 8px; color: #fff; margin-bottom: 10px; outline: none; resize: none; }
+  .msg-card { background: rgba(255,255,255,0.05); padding: 15px; border-radius: 10px; margin-bottom: 10px; border: 1px solid rgba(255,255,255,0.1); }
+  .msg-user { font-weight: bold; color: #4da6ff; margin-bottom: 5px; }
+  .msg-date { font-size: 12px; color: #888; float: right; }
+</style>
+</head>
+<body>
+<canvas id="stars"></canvas>
+
+<!-- Логин -->
+<div class="login-box" id="loginBox">
+  <h2>Вход в Админку</h2>
+  <input type="text" id="loginUser" placeholder="Логин">
+  <input type="password" id="loginPass" placeholder="Пароль">
+  <button onclick="doLogin()">Войти</button>
+</div>
+
+<!-- Панель -->
+<div class="admin-panel" id="adminPanel">
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('control', this)">Управление</div>
+    <div class="tab" onclick="switchTab('chats', this)">Чаты</div>
+    <div class="tab" onclick="switchTab('add', this)">Добавить</div>
+  </div>
+  
+  <div class="tab-content">
+    <!-- Управление -->
+    <div id="control" class="section active">
+      <h3>Рассылка от бота</h3>
+      <p style="color: #888; font-size: 12px; margin-bottom: 10px;">Сообщение получат все, кто писал боту.</p>
+      <textarea id="broadcastText" placeholder="Текст сообщения..."></textarea>
+      <button onclick="sendBroadcast()">Отправить всем</button>
+      <br><br>
+      <h3>Статус бота</h3>
+      <p style="color: #ff4444;">(Функция выключения бота будет добавлена на сервере позже)</p>
+    </div>
+
+    <!-- Чаты -->
+    <div id="chats" class="section">
+      <h3>Последние сообщения</h3>
+      <div id="messagesList" style="margin-top: 15px;">Загрузка...</div>
+    </div>
+
+    <!-- Добавление товара -->
+    <div id="add" class="section">
+      <h3>Новый товар</h3>
+      <input type="text" id="pName" placeholder="Название товара">
+      <textarea id="pDesc" placeholder="Описание"></textarea>
+      <input type="text" id="pCat" placeholder="Категория (например: Telegram Stars)">
+      <input type="number" id="pPrice" placeholder="Цена в рублях">
+      <button onclick="addProduct()">Сохранить и Опубликовать</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Адрес сервера (пока локальный)
+  const API_URL = "http://127.0.0.1:8000"; 
+  let adminToken = "";
+
+  async function doLogin() {
+    const u = document.getElementById('loginUser').value;
+    const p = document.getElementById('loginPass').value;
+    try {
+      const res = await fetch(`${API_URL}/api/admin/login`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({username: u, password: p})
+      });
+      if (res.ok) {
+        const data = await res.json();
+        adminToken = data.token;
+        document.getElementById('loginBox').style.display = 'none';
+        document.getElementById('adminPanel').style.display = 'flex';
+        loadMessages();
+      } else {
+        alert('Доступ запрещен!');
+      }
+    } catch (e) { alert('Сервер недоступен'); }
+  }
+
+  function switchTab(id, el) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    el.classList.add('active');
+    document.getElementById(id).classList.add('active');
+  }
+
+  async function sendBroadcast() {
+    const text = document.getElementById('broadcastText').value;
+    if (!text) return alert('Введите текст');
+    const res = await fetch(`${API_URL}/api/admin/broadcast`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'x-token': adminToken},
+      body: JSON.stringify({text})
+    });
+    if (res.ok) { alert('Успешно отправлено!'); document.getElementById('broadcastText').value = ''; }
+    else alert('Ошибка');
+  }
+
+  async function addProduct() {
+    const name = document.getElementById('pName').value;
+    const desc = document.getElementById('pDesc').value;
+    const cat = document.getElementById('pCat').value;
+    const price = document.getElementById('pPrice').value;
+    
+    const res = await fetch(`${API_URL}/api/admin/add_product`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'x-token': adminToken},
+      body: JSON.stringify({name, description: desc, category: cat, price: parseInt(price)})
+    });
+    if (res.ok) { alert('Товар добавлен!'); document.getElementById('pName').value = ''; document.getElementById('pDesc').value = ''; document.getElementById('pPrice').value = ''; }
+    else alert('Ошибка');
+  }
+
+  async function loadMessages() {
+    const res = await fetch(`${API_URL}/api/admin/messages`, { headers: {'x-token': adminToken} });
+    const msgs = await res.json();
+    const list = document.getElementById('messagesList');
+    list.innerHTML = msgs.map(m => `
+      <div class="msg-card">
+        <span class="msg-user">@${m.username}</span> <span class="msg-date">${m.date}</span>
+        <div style="margin-top: 5px;">${m.text}</div>
+      </div>
+    `).join('');
+  }
+
+  // Звезды (копия)
+  const canvas = document.getElementById('stars'), ctx = canvas.getContext('2d');
+  let W, H, stars = [];
+  function resize() { W = canvas.width = innerWidth; H = canvas.height = innerHeight; }
+  function initStars() { stars = Array.from({ length: 100 }, () => ({ x: Math.random()*W, y: Math.random()*H, r: Math.random()*1.5+0.3, speed: Math.random()*0.3+0.05, alpha: Math.random()*0.6+0.4 })); }
+  function draw() { ctx.clearRect(0,0,W,H); for (let s of stars) { ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI*2); ctx.fillStyle = `rgba(255,255,255,${s.alpha})`; ctx.fill(); s.y -= s.speed; if (s.y < -2) { s.y = H+2; s.x = Math.random()*W; } } requestAnimationFrame(draw); }
+  addEventListener('resize', () => { resize(); initStars(); }); resize(); initStars(); draw();
+</script>
+</body>
+</html>
